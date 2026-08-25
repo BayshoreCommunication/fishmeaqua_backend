@@ -11,6 +11,12 @@ import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 
+// Keep the root and common docs aliases friendly on local Node and Vercel.
+app.get("/", (_req, res) => res.redirect(302, "/api-docs"));
+app.get(["/api/docs", "/docs"], (_req, res) =>
+  res.redirect(302, "/api-docs")
+);
+
 // Mounted before helmet so its default CSP doesn't block Swagger UI's inline assets.
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get("/api-docs.json", (req, res) => res.json(swaggerSpec));
