@@ -1,12 +1,16 @@
 import app from "./app";
 import { env } from "./config/env";
 import { connectDB } from "./config/db";
+import { createServer } from "http";
+import { initializeMessagesRealtime } from "./realtime/messagesRealtime";
 
 const start = async () => {
   try {
     const dbHost = await connectDB();
 
-    const server = app.listen(env.port, () => {
+    const server = createServer(app);
+    initializeMessagesRealtime(server);
+    server.listen(env.port, () => {
       const baseUrl = `http://localhost:${env.port}`;
       const divider = "-".repeat(50);
 

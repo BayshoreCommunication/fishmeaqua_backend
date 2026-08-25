@@ -16,7 +16,8 @@ const router = Router();
  * @swagger
  * /auth/signup:
  *   post:
- *     summary: Register a new customer (signup with email or phone)
+ *     summary: Register a customer with an email address or phone number
+ *     description: Accepts either email or phone, or both. The address may be a simple string or a structured Bangladesh address object.
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -50,7 +51,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ApiErrorResponse'
  *       422:
- *         description: Validation failed (e.g. neither email nor phone provided)
+ *         description: Validation failed (for example, neither email nor phone was provided)
  *         content:
  *           application/json:
  *             schema:

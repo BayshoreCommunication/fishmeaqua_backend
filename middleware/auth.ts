@@ -26,6 +26,9 @@ export const protect = asyncHandler(
     if (!user) {
       throw new ApiError(401, "User no longer exists");
     }
+    if (user.role === "customer" && user.isActive === false) {
+      throw new ApiError(403, "Your account is inactive");
+    }
 
     req.user = user;
     next();

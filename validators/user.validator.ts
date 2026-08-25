@@ -69,6 +69,40 @@ export const updateMeRules: ValidationChain[] = [
     .withMessage("Please enter a valid 4-digit post code"),
   body("address.area").optional({ checkFalsy: true }).trim(),
   body("address.zone").optional({ checkFalsy: true }).isIn(DELIVERY_ZONES),
+  body("shipToDifferentAddress")
+    .optional()
+    .isBoolean()
+    .withMessage("shipToDifferentAddress must be a boolean")
+    .toBoolean(),
+  body("shippingAddress")
+    .optional()
+    .isObject()
+    .withMessage("Shipping address must be an object"),
+  body("shippingAddress.division")
+    .optional({ checkFalsy: true })
+    .isIn(BD_DIVISIONS),
+  body("shippingAddress.district").optional({ checkFalsy: true }).trim(),
+  body("shippingAddress.upazila").optional({ checkFalsy: true }).trim(),
+  body("shippingAddress.postOffice").optional({ checkFalsy: true }).trim(),
+  body("shippingAddress.postCode")
+    .optional({ checkFalsy: true })
+    .matches(/^[0-9]{4}$/)
+    .withMessage("Please enter a valid 4-digit shipping post code"),
+  body("shippingAddress.area").optional({ checkFalsy: true }).trim(),
+  body("shippingAddress.zone")
+    .optional({ checkFalsy: true })
+    .isIn(DELIVERY_ZONES),
+  body().custom((_value, { req }) => {
+    if (
+      req.body.shipToDifferentAddress === true &&
+      (!req.body.shippingAddress || !req.body.shippingAddress.division)
+    ) {
+      throw new Error(
+        "A shipping address is required when using a different shipping address"
+      );
+    }
+    return true;
+  }),
 ];
 
 export const changePasswordRules: ValidationChain[] = [

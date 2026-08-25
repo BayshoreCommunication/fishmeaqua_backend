@@ -5,6 +5,8 @@ import {
   createOrder,
   updateOrder,
   deleteOrder,
+  getMyOrders,
+  getMyOrder,
 } from "../controllers/order.controller";
 import { protect, authorize } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -16,8 +18,101 @@ const router = Router();
  * @swagger
  * tags:
  *   name: Orders
- *   description: Customer order management (manager/admin/superadmin only)
+ *   description: Customer checkout and staff order management
  */
+
+/**
+ * @swagger
+ * /orders/my-orders:
+ *   get:
+ *     summary: Get the signed-in customer's paginated order history
+ *     description: Returns only orders owned by the authenticated customer, six newest orders per page.
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *     responses:
+ *       200:
+ *         description: Order history fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orders:
+ *                       type: array
+ *                       maxItems: 6
+ *                       items:
+ *                         $ref: '#/components/schemas/Order'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         perPage:
+ *                           type: integer
+ *                           example: 6
+ *                         totalPages:
+ *                           type: integer
+ *                         hasPreviousPage:
+ *                           type: boolean
+ *                         hasNextPage:
+ *                           type: boolean
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Customer role required
+ */
+router.get("/my-orders", protect, authorize("customer"), getMyOrders);
+
+/**
+ * @swagger
+ * /orders/my-orders/{id}:
+ *   get:
+ *     summary: Get one order owned by the signed-in customer
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: MongoDB id or order number
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Order fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Order'
+ *       404:
+ *         description: Order not found or not owned by this customer
+ */
+router.get("/my-orders/:id", protect, authorize("customer"), getMyOrder);
 
 /**
  * @swagger
@@ -129,7 +224,7 @@ router
   .get(protect, authorize("manager", "admin", "superadmin"), getOrders)
   .post(
     protect,
-    authorize("manager", "admin", "superadmin"),
+    authorize("customer", "manager", "admin", "superadmin"),
     createOrderRules,
     validate,
     createOrder

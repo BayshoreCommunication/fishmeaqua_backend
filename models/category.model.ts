@@ -53,6 +53,11 @@ const slugify = (text: string): string =>
  *         sortOrder:
  *           type: integer
  *           example: 0
+ *         productCount:
+ *           type: integer
+ *           readOnly: true
+ *           description: Number of active products assigned to this category
+ *           example: 12
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -118,7 +123,7 @@ const categorySchema = new Schema<ICategory>(
       min: 0,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 categorySchema.pre("validate", async function (next) {

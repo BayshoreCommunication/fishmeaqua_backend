@@ -37,11 +37,14 @@ export interface IUser extends Document {
   lastName: string;
   companyName?: string;
   address?: IAddress;
+  shipToDifferentAddress: boolean;
+  shippingAddress?: IAddress;
   phone?: string;
   email?: string;
   avatar?: string;
   password: string;
   role: UserRole;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
@@ -119,10 +122,19 @@ const addressSchema = new Schema<IAddress>(
  *         lastName:
  *           type: string
  *           example: Doe
+ *         name:
+ *           type: string
+ *           example: John Doe
  *         companyName:
  *           type: string
  *           example: Fish Me Aqua Ltd.
  *         address:
+ *           $ref: '#/components/schemas/Address'
+ *         shipToDifferentAddress:
+ *           type: boolean
+ *           description: Whether checkout should use the separately saved shipping address
+ *           example: false
+ *         shippingAddress:
  *           $ref: '#/components/schemas/Address'
  *         phone:
  *           type: string
@@ -146,28 +158,27 @@ const addressSchema = new Schema<IAddress>(
  *     UserSignupInput:
  *       type: object
  *       required:
- *         - firstName
- *         - lastName
+ *         - name
+ *         - address
  *         - password
  *       description: Either email or phone must be provided.
  *       properties:
- *         firstName:
- *           type: string
- *         lastName:
- *           type: string
- *         companyName:
+ *         name:
  *           type: string
  *         address:
- *           $ref: '#/components/schemas/Address'
+ *           oneOf:
+ *             - type: string
+ *               example: House 12, Road 4, Uttara, Dhaka
+ *             - $ref: '#/components/schemas/Address'
  *         phone:
  *           type: string
  *         email:
  *           type: string
- *         avatar:
- *           type: string
  *         password:
  *           type: string
  *           format: password
+ *           minLength: 8
+ *           maxLength: 72
  */
 const userSchema = new Schema<IUser>(
   {
@@ -178,8 +189,8 @@ const userSchema = new Schema<IUser>(
     },
     lastName: {
       type: String,
-      required: [true, "Last name is required"],
       trim: true,
+      default: "",
     },
     companyName: {
       type: String,
@@ -189,6 +200,14 @@ const userSchema = new Schema<IUser>(
     address: {
       type: addressSchema,
       default: () => ({}),
+    },
+    shipToDifferentAddress: {
+      type: Boolean,
+      default: false,
+    },
+    shippingAddress: {
+      type: addressSchema,
+      default: undefined,
     },
     phone: {
       type: String,
@@ -221,6 +240,10 @@ const userSchema = new Schema<IUser>(
       enum: USER_ROLES,
       default: "customer",
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
@@ -245,7 +268,12 @@ userSchema.methods.comparePassword = function (
   return bcrypt.compare(candidate, this.password);
 };
 
+userSchema.virtual("name").get(function () {
+  return [this.firstName, this.lastName].filter(Boolean).join(" ");
+});
+
 userSchema.set("toJSON", {
+  virtuals: true,
   transform: (_doc, ret) => {
     const { password, ...rest } = ret as typeof ret & { password?: string };
     return rest;

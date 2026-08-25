@@ -1,10 +1,64 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { Order, type IOrderItem } from "../models/order.model";
+import type { IAddress } from "../models/user.model";
 import { Product } from "../models/product.model";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
+
+const CUSTOMER_ORDER_PAGE_SIZE = 6;
+
+export const getMyOrders = asyncHandler(
+  async (req: Request, res: Response) => {
+    const page = Math.max(
+      1,
+      parseInt(String(req.query.page ?? "1"), 10) || 1
+    );
+    const skip = (page - 1) * CUSTOMER_ORDER_PAGE_SIZE;
+    const customerFilter = { customer: req.user!._id };
+
+    const [orders, total] = await Promise.all([
+      Order.find(customerFilter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(CUSTOMER_ORDER_PAGE_SIZE)
+        .lean(),
+      Order.countDocuments(customerFilter),
+    ]);
+    const totalPages = Math.ceil(total / CUSTOMER_ORDER_PAGE_SIZE);
+
+    return ApiResponse(res, 200, "Order history fetched successfully", {
+      orders,
+      pagination: {
+        total,
+        page,
+        perPage: CUSTOMER_ORDER_PAGE_SIZE,
+        totalPages,
+        hasPreviousPage: page > 1,
+        hasNextPage: page < totalPages,
+      },
+    });
+  }
+);
+
+export const getMyOrder = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const identifier = mongoose.Types.ObjectId.isValid(id)
+      ? { _id: id }
+      : { orderNumber: id };
+
+    const order = await Order.findOne({
+      ...identifier,
+      customer: req.user!._id,
+    }).lean();
+
+    if (!order) throw new ApiError(404, "Order not found");
+
+    return ApiResponse(res, 200, "Order fetched successfully", order);
+  }
+);
 
 export const getOrders = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
@@ -54,6 +108,7 @@ export const getOrder = asyncHandler(async (req: Request, res: Response) => {
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   const {
     customerName,
+    customerCompany,
     customerPhone,
     customerEmail,
     shippingAddress,
@@ -64,15 +119,26 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     notes,
   } = req.body as {
     customerName: string;
+    customerCompany?: string;
     customerPhone: string;
     customerEmail?: string;
-    shippingAddress?: unknown;
+    shippingAddress?: IAddress;
     items: { product: string; quantity: number }[];
     deliveryFee?: number;
     discount?: number;
     paymentMethod: string;
     notes?: string;
   };
+
+  const requester = req.user!;
+  const isCustomerCheckout = requester.role === "customer";
+
+  if (isCustomerCheckout && paymentMethod !== "cod") {
+    throw new ApiError(
+      422,
+      "Cash on delivery is the only payment method currently available"
+    );
+  }
 
   const productIds = items.map((item) => item.product);
   const products = await Product.find({ _id: { $in: productIds } });
@@ -94,14 +160,21 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   });
 
   const order = await Order.create({
+    customer: isCustomerCheckout ? requester._id : undefined,
     customerName,
+    customerCompany,
     customerPhone,
     customerEmail,
     shippingAddress,
     items: orderItems,
-    deliveryFee,
-    discount,
-    paymentMethod,
+    deliveryFee: isCustomerCheckout
+      ? shippingAddress?.division === "Dhaka" &&
+        shippingAddress.zone === "Inside Dhaka"
+        ? 80
+        : 150
+      : deliveryFee,
+    discount: isCustomerCheckout ? 0 : discount,
+    paymentMethod: isCustomerCheckout ? "cod" : paymentMethod,
     notes,
   });
 
@@ -112,11 +185,50 @@ export const updateOrder = asyncHandler(async (req: Request, res: Response) => {
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, "Order not found");
 
-  const { orderStatus, paymentStatus, notes } = req.body;
+  const {
+    orderStatus,
+    paymentStatus,
+    notes,
+    customerName,
+    customerCompany,
+    customerPhone,
+    customerEmail,
+    shippingAddress,
+    items,
+  } = req.body;
 
   if (orderStatus !== undefined) order.orderStatus = orderStatus;
   if (paymentStatus !== undefined) order.paymentStatus = paymentStatus;
   if (notes !== undefined) order.notes = notes;
+  if (customerName !== undefined) order.customerName = customerName;
+  if (customerCompany !== undefined) order.customerCompany = customerCompany;
+  if (customerPhone !== undefined) order.customerPhone = customerPhone;
+  if (customerEmail !== undefined) order.customerEmail = customerEmail;
+  if (shippingAddress !== undefined) order.shippingAddress = shippingAddress;
+
+  if (items !== undefined) {
+    const requestedItems = items as { product: string; quantity: number }[];
+    const productIds = requestedItems.map((item) => item.product);
+    const products = await Product.find({ _id: { $in: productIds } });
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    const orderItems: IOrderItem[] = requestedItems.map((item) => {
+      const product = productById.get(item.product);
+      if (!product) {
+        throw new ApiError(422, `Product not found: ${item.product}`);
+      }
+      return {
+        product: product._id as mongoose.Types.ObjectId,
+        title: product.title,
+        image: product.featureImage,
+        sku: product.sku,
+        price: product.discountPrice ?? product.price,
+        quantity: item.quantity,
+      };
+    });
+
+    order.items = orderItems;
+  }
 
   await order.save();
 

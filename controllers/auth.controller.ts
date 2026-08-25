@@ -5,6 +5,17 @@ import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 import { generateToken } from "../utils/generateToken";
 
+const normalizeEmail = (email: unknown) =>
+  typeof email === "string" ? email.trim().toLowerCase() : undefined;
+
+const normalizePhone = (phone: unknown) =>
+  typeof phone === "string" ? phone.trim() : undefined;
+
+const splitCustomerName = (name: string) => {
+  const [firstName, ...remainingNames] = name.trim().split(/\s+/);
+  return { firstName, lastName: remainingNames.join(" ") };
+};
+
 const authenticateUser = async (
   identifier: string,
   password: string
@@ -23,16 +34,12 @@ const authenticateUser = async (
 };
 
 export const signup = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    firstName,
-    lastName,
-    companyName,
-    address,
-    phone,
-    email,
-    avatar,
-    password,
-  } = req.body;
+  const { name, address, password } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const phone = normalizePhone(req.body.phone);
+  const { firstName, lastName } = splitCustomerName(name);
+  const normalizedAddress =
+    typeof address === "string" ? { area: address.trim() } : address;
 
   if (email) {
     const existing = await User.findOne({ email: String(email).toLowerCase() });
@@ -47,12 +54,11 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.create({
     firstName,
     lastName,
-    companyName,
-    address,
+    address: normalizedAddress,
     phone,
     email,
-    avatar,
     password,
+    role: "customer",
   });
 
   const token = generateToken({ id: String(user._id), role: user.role });
@@ -62,7 +68,14 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
 
 export const signin = asyncHandler(async (req: Request, res: Response) => {
   const { identifier, password } = req.body;
-  const user = await authenticateUser(identifier, password);
+  const user = await authenticateUser(String(identifier).trim(), password);
+
+  if (user.role !== "customer") {
+    throw new ApiError(401, "Invalid credentials");
+  }
+  if (user.isActive === false) {
+    throw new ApiError(403, "Your account is inactive. Please contact support");
+  }
 
   const token = generateToken({ id: String(user._id), role: user.role });
 

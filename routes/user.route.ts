@@ -364,6 +364,11 @@ router.get("/me", protect, getMe);
  *                 type: string
  *               address:
  *                 $ref: '#/components/schemas/Address'
+ *               shipToDifferentAddress:
+ *                 type: boolean
+ *                 description: Set true to save and use a separate shipping address
+ *               shippingAddress:
+ *                 $ref: '#/components/schemas/Address'
  *     responses:
  *       200:
  *         description: Profile updated successfully

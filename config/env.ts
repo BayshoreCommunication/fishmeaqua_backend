@@ -24,6 +24,10 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   mongoUri: process.env.MONGO_URI as string,
   clientUrl: process.env.CLIENT_URL || "http://localhost:3000",
+  clientUrls: (process.env.CLIENT_URL || "http://localhost:3000")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean),
   isProduction: process.env.NODE_ENV === "production",
   jwtSecret: process.env.JWT_SECRET as string,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",

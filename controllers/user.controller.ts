@@ -153,7 +153,16 @@ export const deleteStaff = asyncHandler(async (req: Request, res: Response) => {
 // General settings: any authenticated user editing their own account.
 export const updateMe = asyncHandler(async (req: Request, res: Response) => {
   const requester = req.user!;
-  const { firstName, lastName, email, phone, companyName, address } = req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    companyName,
+    address,
+    shipToDifferentAddress,
+    shippingAddress,
+  } = req.body;
 
   if (email && email.toLowerCase() !== requester.email) {
     const existing = await User.findOne({ email: String(email).toLowerCase() });
@@ -171,6 +180,13 @@ export const updateMe = asyncHandler(async (req: Request, res: Response) => {
   if (phone !== undefined) requester.phone = phone;
   if (companyName !== undefined) requester.companyName = companyName;
   if (address !== undefined) requester.address = address;
+  if (shipToDifferentAddress !== undefined) {
+    requester.shipToDifferentAddress = shipToDifferentAddress;
+    if (!shipToDifferentAddress) requester.shippingAddress = undefined;
+  }
+  if (shippingAddress !== undefined && shipToDifferentAddress !== false) {
+    requester.shippingAddress = shippingAddress;
+  }
 
   await requester.save();
 

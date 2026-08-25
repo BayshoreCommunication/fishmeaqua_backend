@@ -55,11 +55,22 @@ const productImages = upload.fields([
  *         name: search
  *         schema:
  *           type: string
- *         description: Case-insensitive title search
+ *         description: Case-insensitive title, SKU, and short-description search
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [default, price-low, price-high, name]
+ *           default: default
  *       - in: query
  *         name: isActive
  *         schema:
  *           type: boolean
+ *       - in: query
+ *         name: isFeatured
+ *         schema:
+ *           type: boolean
+ *         description: Filter products by featured status
  *     responses:
  *       200:
  *         description: Products fetched successfully
@@ -192,7 +203,7 @@ router
     productImages,
     createProductRules,
     validate,
-    createProduct
+    createProduct,
   );
 
 /**
@@ -337,7 +348,7 @@ router
     productImages,
     updateProductRules,
     validate,
-    updateProduct
+    updateProduct,
   )
   .delete(protect, authorize("manager", "admin", "superadmin"), deleteProduct);
 

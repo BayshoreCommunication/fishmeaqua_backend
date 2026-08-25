@@ -29,6 +29,7 @@ export interface IOrder extends Document {
   orderNumber: string;
   customer?: mongoose.Types.ObjectId;
   customerName: string;
+  customerCompany?: string;
   customerPhone: string;
   customerEmail?: string;
   shippingAddress?: IAddress;
@@ -107,6 +108,8 @@ const ORDER_PREFIX = "FMA-ORD-";
  *           description: Registered customer id, if this order is tied to an account
  *         customerName:
  *           type: string
+ *         customerCompany:
+ *           type: string
  *         customerPhone:
  *           type: string
  *         customerEmail:
@@ -162,6 +165,8 @@ const ORDER_PREFIX = "FMA-ORD-";
  *       properties:
  *         customerName:
  *           type: string
+ *         customerCompany:
+ *           type: string
  *         customerPhone:
  *           type: string
  *         customerEmail:
@@ -197,6 +202,11 @@ const orderSchema = new Schema<IOrder>(
       type: String,
       required: [true, "Customer name is required"],
       trim: true,
+    },
+    customerCompany: {
+      type: String,
+      trim: true,
+      default: "",
     },
     customerPhone: {
       type: String,
@@ -248,6 +258,9 @@ const orderSchema = new Schema<IOrder>(
   },
   { timestamps: true }
 );
+
+// Customer history queries filter by owner and sort newest-first.
+orderSchema.index({ customer: 1, createdAt: -1 });
 
 orderSchema.pre("validate", async function (next) {
   this.subtotal = this.items.reduce(
