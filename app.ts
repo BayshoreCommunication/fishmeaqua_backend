@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env";
+import { connectDB } from "./config/db";
 import { swaggerSpec } from "./config/swagger";
 import routes from "./routes/index";
 import { notFound } from "./middleware/notFound";
@@ -75,6 +76,14 @@ if (!env.isProduction) {
   app.use(morgan("dev"));
 }
 
+app.use("/api/v1", async (_req, _res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 app.use("/api/v1", routes);
 
 app.use(notFound);
