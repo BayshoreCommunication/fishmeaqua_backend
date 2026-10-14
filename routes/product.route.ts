@@ -6,6 +6,7 @@ import {
   updateProduct,
   deleteProduct,
   getNextSku,
+  getProductStats,
 } from "../controllers/product.controller";
 import { protect, authorize } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -60,7 +61,7 @@ const productImages = upload.fields([
  *         name: sort
  *         schema:
  *           type: string
- *           enum: [default, price-low, price-high, name]
+ *           enum: [default, newest, price-low, price-high, name]
  *           default: default
  *       - in: query
  *         name: isActive
@@ -193,6 +194,56 @@ const productImages = upload.fields([
 router
   .route("/next-sku")
   .get(protect, authorize("manager", "admin", "superadmin"), getNextSku);
+
+/**
+ * @swagger
+ * /products/stats:
+ *   get:
+ *     summary: Catalog-wide product counts (manager/admin/superadmin only)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Product stats fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     active:
+ *                       type: integer
+ *                     inactive:
+ *                       type: integer
+ *                     featured:
+ *                       type: integer
+ *                     outOfStock:
+ *                       type: integer
+ *       401:
+ *         description: Not authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiErrorResponse'
+ *       403:
+ *         description: Not permitted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiErrorResponse'
+ */
+router
+  .route("/stats")
+  .get(protect, authorize("manager", "admin", "superadmin"), getProductStats);
 
 router
   .route("/")

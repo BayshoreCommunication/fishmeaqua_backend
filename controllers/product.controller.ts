@@ -68,6 +68,7 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
 
   const sortOptions: Record<string, Record<string, 1 | -1>> = {
     default: { sortOrder: 1, createdAt: -1 },
+    newest: { createdAt: -1 },
     "price-low": { price: 1, sortOrder: 1 },
     "price-high": { price: -1, sortOrder: 1 },
     name: { title: 1, sortOrder: 1 },
@@ -92,6 +93,27 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
     totalPages: Math.max(1, Math.ceil(total / limit)),
   });
 });
+
+// Catalog-wide counts for the dashboard stat cards — computed separately from
+// the paginated list so they stay correct no matter which page is loaded.
+export const getProductStats = asyncHandler(
+  async (req: Request, res: Response) => {
+    const [total, active, featured, outOfStock] = await Promise.all([
+      Product.countDocuments(),
+      Product.countDocuments({ isActive: true }),
+      Product.countDocuments({ isFeatured: true }),
+      Product.countDocuments({ stock: 0 }),
+    ]);
+
+    return ApiResponse(res, 200, "Product stats fetched successfully", {
+      total,
+      active,
+      inactive: total - active,
+      featured,
+      outOfStock,
+    });
+  },
+);
 
 export const getProduct = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
