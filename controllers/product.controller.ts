@@ -6,6 +6,7 @@ import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 import { uploadToSpaces, deleteFromSpaces } from "../utils/uploadToSpaces";
+import { toWebpUrl } from "../utils/webpImages";
 
 type UploadedFiles = { [fieldname: string]: Express.Multer.File[] };
 
@@ -266,8 +267,16 @@ export const updateProduct = asyncHandler(
       if (keepGalleryImages !== undefined) {
         try {
           const parsed = JSON.parse(keepGalleryImages);
+          // The dashboard sends back the webp URLs it received, so match them
+          // against the stored URLs (which may still be jpg/png).
           keptUrls = Array.isArray(parsed)
-            ? parsed.filter((url) => product.galleryImages.includes(url))
+            ? parsed
+                .map((url) =>
+                  product.galleryImages.find(
+                    (stored) => stored === url || toWebpUrl(stored) === url,
+                  ),
+                )
+                .filter((url): url is string => Boolean(url))
             : [];
         } catch {
           keptUrls = product.galleryImages;

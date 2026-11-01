@@ -1,6 +1,8 @@
 import type { Response } from "express";
+import { withWebpImages } from "./webpImages";
 
-export const ApiResponse = <T>(
+// Every image URL in the response is served as webp, whatever format is stored in the DB.
+export const ApiResponse = async <T>(
   res: Response,
   statusCode: number,
   message: string,
@@ -9,6 +11,6 @@ export const ApiResponse = <T>(
   return res.status(statusCode).json({
     success: statusCode < 400,
     message,
-    data,
+    data: await withWebpImages(data),
   });
 };
